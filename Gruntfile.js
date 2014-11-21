@@ -3,10 +3,7 @@
 module.exports = function(grunt) {
 
   //Load NPM tasks
-  grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-mocha-test');
-  grunt.loadNpmTasks('grunt-markdown');
-  grunt.loadNpmTasks('grunt-shell');
+  require('load-grunt-tasks')(grunt);
 
   // Project Configuration
   grunt.initConfig({
