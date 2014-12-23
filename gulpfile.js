@@ -228,7 +228,7 @@ gulp.task('release:install', function() {
     'npm install',
   ]);
 });
-gulp.task('release:package', function() {
+gulp.task('release:bump', function() {
   return gulp.src(['./bower.json', './package.json'])
     .pipe(bump({
       type: 'minor'
@@ -246,10 +246,9 @@ gulp.task('release', function(cb) {
     ['test'],
     //build browser bundle
     ['browser'],
-    //update package.json
-    ['release:package'],
-    //update bower.json
-    [],
+    //update package.json and bower.json
+    ['release:bump'],
+    /*
     //build and deploy new docs
     [],
     //push those changes and merge into master in a "version update" PR
@@ -266,6 +265,7 @@ gulp.task('release', function(cb) {
     [],
     //upload browser bundle to be distributed with the release via github
     [],
+    */
     cb);
 });
 
