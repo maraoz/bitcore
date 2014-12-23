@@ -41,7 +41,6 @@ var through = require('through2');
 var gutil = require('gulp-util');
 var jsdoc2md = require('jsdoc-to-markdown');
 var mfs = require('more-fs');
-var clean = require('gulp-clean');
 var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 var bump = require('gulp-bump');
@@ -218,14 +217,6 @@ gulp.task('watch:browser', function() {
  */
 
 
-gulp.task('release:clean', function() {
-  /*
-  return gulp.src('node_modules', {
-    read: false
-  }).pipe(clean())
-  */
-});
-
 gulp.task('release:install', function() {
   return shell.task([
     'npm install',
@@ -273,8 +264,6 @@ gulp.task('release:publish', shell.task([
 // requires https://hub.github.com/
 gulp.task('release', function(cb) {
   runSequence(
-    //remove node_modules folder
-    ['release:clean'],
     //run npm install
     ['release:install'],
     //build browser bundle
