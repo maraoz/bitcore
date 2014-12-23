@@ -239,7 +239,7 @@ gulp.task('release:bump', function() {
     .pipe(gulp.dest('./'));
 });
 gulp.task('release:commit', function() {
-  return gulp.src(['./package.json', './bower.json'])
+  return gulp.src(['./package.json', './bower.json', './browser/bitcore.js', 'browser/bitcore.min.js'])
     .pipe(git.commit('bumps package version'));
 });
 gulp.task('release:push', function() {
