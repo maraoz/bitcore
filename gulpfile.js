@@ -238,7 +238,7 @@ gulp.task('release:bump', function() {
     .pipe(gulp.dest('./'));
 });
 gulp.task('release:push', function() {
-  return gulp.src('./package.json')
+  return gulp.src(['./package.json', './bower.json'])
     .pipe(git.commit('bumps package version'))
     .pipe(git.push('origin', 'master', {
       args: ''
