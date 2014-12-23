@@ -231,7 +231,7 @@ gulp.task('release:install', function() {
 gulp.task('release:bump', function() {
   return gulp.src(['./bower.json', './package.json'])
     .pipe(bump({
-      type: 'minor'
+      type: 'patch'
     }))
     .pipe(gulp.dest('./'));
 });
