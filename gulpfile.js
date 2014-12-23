@@ -21,17 +21,17 @@
  * <li> `browser:compressed` - build `browser/bitcore.min.js`
  * <li> `browser:maketests` - build `browser/tests.js`, needed for testing without karma
  * </ul>`
- * <li> `errors` - autogenerate the `./lib/errors/index.js` file with error definitions 
+ * <li> `errors` - autogenerate the `./lib/errors/index.js` file with error definitions
  * <li> `lint` - run `jshint`
  * <li> `coverage` - run `istanbul` with mocha to generate a report of test coverage
  * <li> `jsdoc` - run `jsdoc` to generate the API reference
  * <li> `coveralls` - updates coveralls info
+ * <li> `release` - automates release process (only for bitcore maintainers)
  * </ul>
  */
 'use strict';
 
 var gulp = require('gulp');
-var closureCompiler = require('gulp-closure-compiler');
 var coveralls = require('gulp-coveralls');
 var jshint = require('gulp-jshint');
 var mocha = require('gulp-mocha');
@@ -41,6 +41,12 @@ var through = require('through2');
 var gutil = require('gulp-util');
 var jsdoc2md = require('jsdoc-to-markdown');
 var mfs = require('more-fs');
+var clean = require('gulp-clean');
+var uglify = require('gulp-uglify');
+var rename = require('gulp-rename');
+var bump = require('gulp-bump');
+
+
 
 var files = ['lib/**/*.js'];
 var tests = ['test/**/*.js'];
@@ -91,17 +97,15 @@ gulp.task('browser:uncompressed', ['browser:makefolder', 'errors'], shell.task([
   './node_modules/.bin/browserify index.js --insert-global-vars=true --standalone=bitcore -o browser/bitcore.js'
 ]));
 
-gulp.task('browser:compressed', ['browser:makefolder', 'errors'], function() {
-  return gulp.src('dist/bitcore.js')
-    .pipe(closureCompiler({
-      fileName: 'bitcore.min.js',
-      compilerPath: 'node_modules/closure-compiler-jar/compiler.jar',
-      compilerFlags: {
-        language_in: 'ECMASCRIPT5',
-        jscomp_off: 'suspiciousCode'
-      }
+gulp.task('browser:compressed', ['browser:uncompressed'], function() {
+  return gulp.src('browser/bitcore.js')
+    .pipe(uglify({
+      mangle: true,
+      compress: true
     }))
-    .pipe(gulp.dest('dist'));
+    .pipe(rename('bitcore.min.js'))
+    .pipe(gulp.dest('browser'))
+    .on('error', gutil.log);
 });
 
 gulp.task('browser:maketests', ['browser:makefolder'], shell.task([
@@ -133,8 +137,8 @@ gulp.task('jsdoc', function() {
 
   function jsdoc() {
     return through.obj(function(file, enc, cb) {
-      
-      if (file.isNull()){
+
+      if (file.isNull()) {
         cb(null, file);
         return;
       }
@@ -142,7 +146,7 @@ gulp.task('jsdoc', function() {
         cb(new gutil.PluginError('gulp-jsdoc2md', 'Streaming not supported'));
         return;
       }
-      var destination = 'docs/api/'+file.path.replace(file.base, '').replace(/\.js$/, '.md');
+      var destination = 'docs/api/' + file.path.replace(file.base, '').replace(/\.js$/, '.md');
       jsdoc2md.render(file.path, {})
         .on('error', function(err) {
           gutil.log(gutil.colors.red('jsdoc2md failed', err.message));
@@ -151,7 +155,7 @@ gulp.task('jsdoc', function() {
       cb(null, file);
     });
   }
-  
+
   return gulp.src(files).pipe(jsdoc());
 
 });
@@ -207,11 +211,69 @@ gulp.task('watch:browser', function() {
 });
 
 /**
+ * Release automation
+ */
+
+
+gulp.task('release:clean', function() {
+  /*
+  return gulp.src('node_modules', {
+    read: false
+  }).pipe(clean())
+  */
+});
+
+gulp.task('release:install', function() {
+  return shell.task([
+    'npm install',
+  ]);
+});
+gulp.task('release:package', function() {
+  return gulp.src(['./bower.json', './package.json'])
+    .pipe(bump({
+      type: 'minor'
+    }))
+    .pipe(gulp.dest('./'));
+});
+
+gulp.task('release', function(cb) {
+  runSequence(
+    //remove node_modules folder
+    ['release:clean'],
+    //run npm install
+    ['release:install'],
+    //run tests with gulp test
+    ['test'],
+    //build browser bundle
+    ['browser'],
+    //update package.json
+    ['release:package'],
+    //update bower.json
+    [],
+    //build and deploy new docs
+    [],
+    //push those changes and merge into master in a "version update" PR
+    [],
+    //run git tag -a $VERSION -m '$VERSION' with the new version number
+    [],
+    //run git push bitpay $VERSION
+    [],
+    //run npm publish
+    [],
+    //check that both npm install bitcore and bower install bitcore work
+    [],
+    //check that browser bundle is correct
+    [],
+    //upload browser bundle to be distributed with the release via github
+    [],
+    cb);
+});
+
+
+/**
  * Default task
  */
 gulp.task('default', function(callback) {
-  return runSequence(['lint', 'jsdoc'],
-                     ['browser:uncompressed', 'test'],
-                     ['coverage', 'browser:compressed'],
-                     callback);
+  return runSequence(['lint', 'jsdoc'], ['browser:uncompressed', 'test'], ['coverage', 'browser:compressed'],
+    callback);
 });
