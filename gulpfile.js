@@ -47,6 +47,7 @@ var rename = require('gulp-rename');
 var bump = require('gulp-bump');
 var git = require('gulp-git');
 var tag_version = require('gulp-tag-version');
+var pjson = require('./package.json');
 
 
 
@@ -237,22 +238,37 @@ gulp.task('release:bump', function() {
     }))
     .pipe(gulp.dest('./'));
 });
-gulp.task('release:push', function() {
+gulp.task('release:commit', function() {
   return gulp.src(['./package.json', './bower.json'])
-    .pipe(git.commit('bumps package version'))
-    .pipe(git.push('origin', 'master', {
-      args: ''
-    }, function(err) {
-      if (err) {
-        throw err;
-      }
-    }));
+    .pipe(git.commit('bumps package version'));
 });
+gulp.task('release:push', function() {
+  git.push('bitpay', 'master', {
+    args: ''
+  }, function(err) {
+    if (err) {
+      throw err;
+    }
+  });
+});
+gulp.task('release:push-tag', function() {
+  git.push('bitpay', 'v' + pjson.version, {
+    args: ''
+  }, function(err) {
+    if (err) {
+      throw err;
+    }
+  });
+});
+
 gulp.task('release:tag', function() {
   return gulp.src(['./package.json']).pipe(tag_version());
 });
 
 
+gulp.task('release:publish', shell.task([
+  'npm publish'
+]));
 
 // requires https://hub.github.com/
 gulp.task('release', function(cb) {
@@ -269,20 +285,16 @@ gulp.task('release', function(cb) {
     ['release:bump'],
     //build and deploy new docs
     //[],
+    // commit 
+    ['release:commit'],
     //push those changes and merge into master in a "version update" PR
     ['release:push'],
     //run git tag -a $VERSION -m '$VERSION' with the new version number
-    //[],
+    ['release:tag'],
     //run git push bitpay $VERSION
-    //[],
+    ['release:push-tag'],
     //run npm publish
-    //[],
-    //check that both npm install bitcore and bower install bitcore work
-    //[],
-    //check that browser bundle is correct
-    //[],
-    //upload browser bundle to be distributed with the release via github
-    //[],
+    ['release:publish'],
     cb);
 });
 
