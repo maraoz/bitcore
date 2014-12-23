@@ -45,6 +45,8 @@ var clean = require('gulp-clean');
 var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 var bump = require('gulp-bump');
+var git = require('gulp-git');
+var tag_version = require('gulp-tag-version');
 
 
 
@@ -235,24 +237,34 @@ gulp.task('release:bump', function() {
     }))
     .pipe(gulp.dest('./'));
 });
+gulp.task('release:push', function() {
+  return gulp.src('./package.json')
+    // commit the changed version number
+    .pipe(git.commit('bumps package version'));
+});
+gulp.task('release:tag', function() {
+  return gulp.src(['./package.json']).pipe(tag_version());
+});
 
+
+
+// requires https://hub.github.com/
 gulp.task('release', function(cb) {
   runSequence(
     //remove node_modules folder
     ['release:clean'],
     //run npm install
     ['release:install'],
-    //run tests with gulp test
-    ['test'],
     //build browser bundle
     ['browser'],
+    //run tests with gulp test
+    ['test'],
     //update package.json and bower.json
     ['release:bump'],
-    /*
     //build and deploy new docs
-    [],
+    //[],
     //push those changes and merge into master in a "version update" PR
-    [],
+    ['release:push'],
     //run git tag -a $VERSION -m '$VERSION' with the new version number
     [],
     //run git push bitpay $VERSION
@@ -265,14 +277,11 @@ gulp.task('release', function(cb) {
     [],
     //upload browser bundle to be distributed with the release via github
     [],
-    */
     cb);
 });
 
 
-/**
- * Default task
- */
+/* Default task */
 gulp.task('default', function(callback) {
   return runSequence(['lint', 'jsdoc'], ['browser:uncompressed', 'test'], ['coverage', 'browser:compressed'],
     callback);
