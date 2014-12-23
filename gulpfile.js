@@ -272,17 +272,17 @@ gulp.task('release', function(cb) {
     //push those changes and merge into master in a "version update" PR
     ['release:push'],
     //run git tag -a $VERSION -m '$VERSION' with the new version number
-    [],
+    //[],
     //run git push bitpay $VERSION
-    [],
+    //[],
     //run npm publish
-    [],
+    //[],
     //check that both npm install bitcore and bower install bitcore work
-    [],
+    //[],
     //check that browser bundle is correct
-    [],
+    //[],
     //upload browser bundle to be distributed with the release via github
-    [],
+    //[],
     cb);
 });
 
