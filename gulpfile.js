@@ -239,8 +239,14 @@ gulp.task('release:bump', function() {
 });
 gulp.task('release:push', function() {
   return gulp.src('./package.json')
-    // commit the changed version number
-    .pipe(git.commit('bumps package version'));
+    .pipe(git.commit('bumps package version'))
+    .pipe(git.push('origin', 'master', {
+      args: ''
+    }, function(err) {
+      if (err) {
+        throw err;
+      }
+    }));
 });
 gulp.task('release:tag', function() {
   return gulp.src(['./package.json']).pipe(tag_version());
