@@ -45,9 +45,6 @@ var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 var bump = require('gulp-bump');
 var git = require('gulp-git');
-var tag_version = require('gulp-tag-version');
-var pjson = require('./package.json');
-
 
 
 var files = ['lib/**/*.js'];
@@ -114,8 +111,8 @@ gulp.task('browser:maketests', ['browser:makefolder'], shell.task([
   'find test/ -type f -name "*.js" | xargs ./node_modules/.bin/browserify -t brfs -o browser/tests.js'
 ]));
 
-gulp.task('browser', ['errors'], function(callback) {
-  runSequence(['browser:uncompressed'], ['browser:compressed'], ['browser:maketests'], callback);
+gulp.task('browser', function(callback) {
+  runSequence(['browser:compressed'], ['browser:maketests'], callback);
 });
 
 gulp.task('errors', shell.task([
@@ -216,12 +213,12 @@ gulp.task('watch:browser', function() {
  * Release automation
  */
 
-
 gulp.task('release:install', function() {
   return shell.task([
     'npm install',
   ]);
 });
+
 gulp.task('release:bump', function() {
   return gulp.src(['./bower.json', './package.json'])
     .pipe(bump({
@@ -229,33 +226,58 @@ gulp.task('release:bump', function() {
     }))
     .pipe(gulp.dest('./'));
 });
-gulp.task('release:commit', function() {
-  return gulp.src(['./package.json', './bower.json', './browser/bitcore.js', 'browser/bitcore.min.js'])
-    .pipe(git.commit('bumps package version'));
-});
-gulp.task('release:push', function() {
-  git.push('bitpay', 'master', {
-    args: ''
-  }, function(err) {
-    if (err) {
-      throw err;
-    }
-  });
-});
-gulp.task('release:push-tag', function() {
-  git.push('bitpay', 'v' + pjson.version, {
-    args: ''
-  }, function(err) {
-    if (err) {
-      throw err;
-    }
-  });
+
+gulp.task('release:checkout-releases', function(cb) {
+  git.checkout('releases', {args: ''}, cb);
 });
 
-gulp.task('release:tag', function() {
-  return gulp.src(['./package.json']).pipe(tag_version());
+gulp.task('release:merge-master', function(cb) {
+  git.merge('master', {args: ''}, cb);
 });
 
+gulp.task('release:checkout-master', function(cb) {
+  git.checkout('master', {args: ''}, cb);
+});
+
+gulp.task('release:add-built-files', function() {
+  return gulp.src(['./browser/bitcore.js', './browser/bitcore.min.js', './package.json', './bower.json'])
+    .pipe(git.add({args: '-f'}));
+});
+
+gulp.task('release:build-commit', ['release:add-built-files'], function() {
+  var pjson = require('./package.json');
+  return gulp.src(['./browser/bitcore.js', './browser/bitcore.min.js', './package.json', './bower.json'])
+    .pipe(git.commit('Build: ' + pjson.version, {args: ''}));
+});
+
+gulp.task('release:version-commit', function() {
+  var pjson = require('./package.json');
+  var files = ['./package.json', './bower.json'];
+  return gulp.src(files)
+    .pipe(git.commit('Bump package version to ' + pjson.version, {args: ''}));
+});
+
+gulp.task('release:push-releases', function(cb) {
+  git.push('origin', 'releases', {
+    args: ''
+  }, cb);
+});
+
+gulp.task('release:push', function(cb) {
+  git.push('origin', 'master', {
+    args: ''
+  }, cb);
+});
+
+gulp.task('release:push-tag', function(cb) {
+  var pjson = require('./package.json');
+  var name = 'v' + pjson.version;
+  git.tag(name, 'Release ' + name, function() {
+    git.push('origin', name, {
+      args: '--tags'
+    }, cb);
+  });
+});
 
 gulp.task('release:publish', shell.task([
   'npm publish'
@@ -264,26 +286,34 @@ gulp.task('release:publish', shell.task([
 // requires https://hub.github.com/
 gulp.task('release', function(cb) {
   runSequence(
-    //run npm install
+    // Checkout the `releases` branch
+    ['release:checkout-releases'],
+    // Merge the master branch
+    ['release:merge-master'],
+    // Run npm install
     ['release:install'],
-    //build browser bundle
-    ['browser'],
-    //run tests with gulp test
+    // Build browser bundle
+    ['browser:compressed'],
+    // Run tests with gulp test
     ['test'],
-    //update package.json and bower.json
+    // Update package.json and bower.json
     ['release:bump'],
-    //build and deploy new docs
-    //[],
-    // commit 
-    ['release:commit'],
-    //push those changes and merge into master in a "version update" PR
-    ['release:push'],
-    //run git tag -a $VERSION -m '$VERSION' with the new version number
-    ['release:tag'],
-    //run git push bitpay $VERSION
+    // Commit 
+    ['release:build-commit'],
+    // Run git push bitpay $VERSION
     ['release:push-tag'],
-    //run npm publish
+    // Push to releases branch
+    ['release:push-releases'],
+    // Run npm publish
     ['release:publish'],
+    // Checkout the `master` branch
+    ['release:checkout-master'],
+    // Bump package.json and bower.json, again
+    ['release:bump'],
+    // Version commit with no binary files to master
+    ['release:version-commit'],
+    // Push to master
+    ['release:push'],
     cb);
 });
 
